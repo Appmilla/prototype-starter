@@ -1,0 +1,98 @@
+/* Plain styles for the starter's own screens: /screens, /sign-in and "no screen here". Not part of the design. */
+
+.dev-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px 48px;
+  font-family: system-ui, sans-serif;
+  line-height: 1.5;
+  color: #1d1d1f;
+}
+
+.dev-page h1 {
+  margin: 0 0 8px;
+  font-size: 1.75rem;
+}
+
+.dev-page h2 {
+  margin: 32px 0 8px;
+  font-size: 1.25rem;
+}
+
+.dev-muted {
+  color: #6e6e73;
+}
+
+.dev-empty {
+  padding: 24px;
+  border: 1px dashed #c7c7cc;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.dev-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.dev-table th,
+.dev-table td {
+  padding: 8px;
+  border-bottom: 1px solid #e5e5ea;
+  text-align: left;
+  vertical-align: top;
+}
+
+.dev-states {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.dev-missing {
+  color: #c0392b;
+}
+
+.dev-list {
+  padding: 0;
+  list-style: none;
+}
+
+.dev-list li + li {
+  margin-top: 8px;
+}
+
+.dev-button {
+  padding: 8px 14px;
+  border: 1px solid #c7c7cc;
+  border-radius: 8px;
+  background: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.dev-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+@media (max-width: 640px) {
+  .dev-table thead {
+    display: none;
+  }
+  .dev-table tr {
+    display: block;
+    padding: 8px 0;
+    border-bottom: 1px solid #e5e5ea;
+  }
+  .dev-table td {
+    display: block;
+    padding: 2px 0;
+    border: 0;
+  }
+}
