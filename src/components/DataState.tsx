@@ -4,7 +4,7 @@ import type { DataResult } from '../data/hooks';
 interface DataStateProps<T> {
   result: DataResult<T>;
   /** Drawn when the data has loaded and there is something to show. */
-  children: (data: T) => ReactNode;
+  children: (data: NonNullable<T>) => ReactNode;
   empty?: ReactNode;
   loading?: ReactNode;
   error?: (error: Error, retry: () => void) => ReactNode;
@@ -41,6 +41,6 @@ export function DataState<T>({ result, children, empty, loading, error, denied }
     case 'denied':
       return denied ?? <div className="state state-denied">You don’t have access to this.</div>;
     case 'ready':
-      return <>{children(result.data as T)}</>;
+      return <>{children(result.data as NonNullable<T>)}</>;
   }
 }
