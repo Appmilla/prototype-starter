@@ -1,0 +1,353 @@
+<title>Clickable Prototype Guide</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: one phone-first column of numbered steps; each step pairs plain words with a screenshot and the words to say. */
+:root {
+  --bg: #f4f6fb;
+  --surface: #ffffff;
+  --ink: #161b28;
+  --muted: #5a6275;
+  --line: #dde2ee;
+  --accent: #2d55e6;
+  --accent-ink: #ffffff;
+  --marker: #ffd23f;
+  --marker-ink: #3a2f00;
+  --screen: #fbfcff;
+  --screen-line: #e4e8f2;
+  --chip: #eef1fa;
+  --good: #1f8a57;
+  --say: #10172a;
+  --say-ink: #f2f5ff;
+  --display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --body: "Atkinson Hyperlegible", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f131c; --surface: #171c28; --ink: #eef1f8; --muted: #a2aabd; --line: #2a3142;
+    --accent: #7d9bff; --accent-ink: #0b1020; --marker: #ffd23f; --marker-ink: #2b2300;
+    --screen: #1c2230; --screen-line: #2e3648; --chip: #252c3c; --good: #5fd39a;
+    --say: #222a3b; --say-ink: #f2f5ff; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f131c; --surface: #171c28; --ink: #eef1f8; --muted: #a2aabd; --line: #2a3142;
+  --accent: #7d9bff; --accent-ink: #0b1020; --marker: #ffd23f; --marker-ink: #2b2300;
+  --screen: #1c2230; --screen-line: #2e3648; --chip: #252c3c; --good: #5fd39a;
+  --say: #222a3b; --say-ink: #f2f5ff; color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 0 64px;
+}
+.wrap { max-width: 720px; margin: 0 auto; }
+h1, h2, h3 { font-family: var(--display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+p { margin: 0; }
+a { color: var(--accent); }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+
+/* Opening */
+header.intro { padding-block: 40px 28px; display: grid; gap: 14px; }
+.eyebrow { font-family: var(--mono); font-size: 0.75rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+header.intro h1 { font-size: clamp(2.1rem, 7vw, 3.2rem); font-weight: 800; line-height: 1.02; }
+header.intro h1 mark { background: linear-gradient(transparent 58%, var(--marker) 58% 92%, transparent 92%); color: inherit; padding: 0 2px; }
+.lede { font-size: 1.15rem; color: var(--muted); max-width: 60ch; }
+.route { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; padding: 0; list-style: none; }
+.route li { font-size: 0.9rem; background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; }
+.route a { color: var(--ink); text-decoration: none; }
+.route b { font-family: var(--mono); font-weight: 500; color: var(--accent); margin-right: 6px; }
+
+/* Panels */
+.note { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; display: grid; gap: 10px; }
+.note h2 { font-size: 1.15rem; }
+.note ul { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
+
+/* Steps */
+.steps { list-style: none; padding: 0; margin: 36px 0 0; display: grid; gap: 44px; }
+.step { display: grid; gap: 16px; scroll-margin-top: 16px; }
+.step-head { display: grid; grid-template-columns: auto 1fr; gap: 14px; align-items: start; }
+.num { font-family: var(--display); font-weight: 800; font-size: 1.1rem; width: 2.4rem; height: 2.4rem; border-radius: 50%; display: grid; place-items: center; background: var(--ink); color: var(--bg); font-variant-numeric: tabular-nums; }
+.step h2 { font-size: clamp(1.45rem, 4.6vw, 1.85rem); font-weight: 700; line-height: 1.15; padding-top: 2px; }
+.step .why { color: var(--muted); margin-top: 4px; }
+.body { display: grid; gap: 14px; padding-left: calc(2.4rem + 14px); }
+.body ol, .body ul { margin: 0; padding-left: 1.25em; display: grid; gap: 6px; }
+@media (max-width: 520px) { .body { padding-left: 0; } }
+
+/* "Say this" phrase with a copy button */
+.say { display: flex; align-items: center; gap: 10px; background: var(--say); color: var(--say-ink); border-radius: 14px; padding: 12px 12px 12px 16px; }
+.say q { flex: 1; min-width: 0; font-size: 1.05rem; font-weight: 700; quotes: "\201C" "\201D"; }
+.say button { flex: none; font: inherit; font-size: 0.85rem; border: 0; border-radius: 10px; padding: 8px 12px; background: var(--accent); color: var(--accent-ink); cursor: pointer; }
+.say-label { font-family: var(--mono); font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+
+/* Screenshots */
+.shot { margin: 0; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--surface); max-width: 100%; }
+.shot img { display: block; width: 100%; height: auto; }
+
+/* Two ways side by side */
+.ways { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 14px; }
+.way { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.way h3 { font-size: 1.05rem; }
+
+/* Things to ask */
+.asks { display: grid; gap: 8px; }
+.ask { display: flex; gap: 10px; align-items: baseline; border-bottom: 1px dashed var(--line); padding-bottom: 8px; }
+.ask q { font-weight: 700; flex: 1; min-width: 0; }
+.ask span { color: var(--muted); font-size: 0.9rem; flex: 0 1 45%; }
+@media (max-width: 520px) { .ask { flex-direction: column; gap: 2px; } .ask span { flex: none; } }
+
+footer { margin-top: 56px; display: grid; gap: 18px; }
+.never { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; }
+.never div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; font-size: 0.95rem; }
+.never b { display: block; font-family: var(--display); font-size: 1rem; }
+.small { font-size: 0.85rem; color: var(--muted); }
+</style>
+
+<div class="wrap">
+  <header class="intro">
+    <div class="eyebrow">Appmilla · for designers</div>
+    <h1>From Claude Design to a <mark>clickable prototype</mark></h1>
+    <p class="lede">Eight steps, done mostly in plain words to Claude. You never need to touch code, Git or settings: Claude does that and tells you what changed on screen.</p>
+    <ul class="route" aria-label="Steps">
+      <li><a href="#new-repo"><b>1</b>New repository</a></li>
+      <li><a href="#open"><b>2</b>Open in Claude</a></li>
+      <li><a href="#design"><b>3</b>Bring the design</a></li>
+      <li><a href="#build"><b>4</b>Build</a></li>
+      <li><a href="#click"><b>5</b>Click through</a></li>
+      <li><a href="#change"><b>6</b>Change things</a></li>
+      <li><a href="#share"><b>7</b>Share</a></li>
+      <li><a href="#signoff"><b>8</b>Sign-off</a></li>
+    </ul>
+  </header>
+
+  <section class="note" aria-labelledby="before">
+    <h2 id="before">Before your first prototype</h2>
+    <ul>
+      <li>You're a member of the <b>Appmilla</b> organisation on GitHub.</li>
+      <li>You can sign in to <b>claude.ai/code</b>, on your phone or computer.</li>
+      <li>Rich has set up the Claude Code environment for prototypes, so sharing with clients works. You'll pick it in step 2.</li>
+    </ul>
+  </section>
+
+  <ol class="steps">
+    <!-- 1 -->
+    <li class="step" id="new-repo">
+      <div class="step-head">
+        <div class="num" aria-hidden="true">1</div>
+        <div>
+          <h2>Make a new repository from the template</h2>
+          <p class="why">Each prototype gets its own private home on GitHub, copied from Appmilla's starter.</p>
+        </div>
+      </div>
+      <div class="body">
+        <ol>
+          <li>Open <a href="https://github.com/Appmilla/prototype-starter" target="_blank" rel="noopener">github.com/Appmilla/prototype-starter</a>.</li>
+          <li>Tap <b>Use this template</b>, then <b>Create a new repository</b>.</li>
+        </ol>
+        <figure class="shot"><img src="shots/01-use-template.png" alt="The template page on GitHub with the Use this template menu open" loading="lazy"></figure>
+        <ol start="3">
+          <li><b>Owner:</b> Appmilla. <b>Name:</b> the client and the product, like <code>acme-dashboard-prototype</code>.</li>
+          <li>Choose <b>Private</b>. Client work is never public.</li>
+          <li>Tap <b>Create repository</b>.</li>
+        </ol>
+        <figure class="shot"><img src="shots/02-new-repo.png" alt="The Create a new repository form, filled in, with Private selected" loading="lazy"></figure>
+      </div>
+    </li>
+
+    <!-- 2 -->
+    <li class="step" id="open">
+      <div class="step-head">
+        <div class="num" aria-hidden="true">2</div>
+        <div>
+          <h2>Open it in Claude Code</h2>
+          <p class="why">This is where you'll talk to Claude about the prototype from now on.</p>
+        </div>
+      </div>
+      <div class="body">
+        <ol>
+          <li>Go to <a href="https://claude.ai/code" target="_blank" rel="noopener">claude.ai/code</a>.</li>
+          <li>Pick your new repository, for example <b>Appmilla/acme-dashboard-prototype</b>.</li>
+          <li>Pick the <b>prototypes environment</b> Rich set up, and the model <b>Opus 5.5</b> on <b>High</b>.</li>
+        </ol>
+        <figure class="shot"><img src="shots/03-new-session.png" alt="A new Claude Code session with the repository, the prototypes environment and Opus 5.5 on High chosen" loading="lazy"></figure>
+      </div>
+    </li>
+
+    <!-- 3 -->
+    <li class="step" id="design">
+      <div class="step-head">
+        <div class="num" aria-hidden="true">3</div>
+        <div>
+          <h2>Bring the design from Claude Design</h2>
+          <p class="why">Claude needs what Claude Design produced: the screens, components and styles. Use whichever way suits you.</p>
+        </div>
+      </div>
+      <div class="body">
+        <div class="ways">
+          <div class="way">
+            <h3>Hand it over from Claude Design</h3>
+            <p>In your Claude Design project, use its option to hand the design to Claude Code, and choose this repository.</p>
+            <figure class="shot"><img src="shots/04-design-handoff.png" alt="Claude Design's option for handing the design over or downloading it" loading="lazy"></figure>
+          </div>
+          <div class="way">
+            <h3>Or download it and attach it</h3>
+            <p>Download the design from Claude Design (a .zip file), then attach it to your message in step 4.</p>
+            <figure class="shot"><img src="shots/05-attach.png" alt="The Claude Code message box with the design attached" loading="lazy"></figure>
+          </div>
+        </div>
+      </div>
+    </li>
+
+    <!-- 4 -->
+    <li class="step" id="build">
+      <div class="step-head">
+        <div class="num" aria-hidden="true">4</div>
+        <div>
+          <h2>Ask Claude to build it</h2>
+          <p class="why">Claude reads the design, builds the first few screens so you can click something quickly, then builds the rest.</p>
+        </div>
+      </div>
+      <div class="body">
+        <div class="say-label">Say this</div>
+        <div class="say"><q>Build the clickable prototype from the design.</q><button type="button" data-copy="Build the clickable prototype from the design.">Copy</button></div>
+        <figure class="shot"><img src="shots/07-build-reply.png" alt="Claude's reply after being asked to build the prototype" loading="lazy"></figure>
+        <p class="small">A first build takes a while. You can leave it running and come back; Claude carries on.</p>
+      </div>
+    </li>
+
+    <!-- 5 -->
+    <li class="step" id="click">
+      <div class="step-head">
+        <div class="num" aria-hidden="true">5</div>
+        <div>
+          <h2>Click through every screen</h2>
+          <p class="why">The <b>Screens</b> page lists every screen, and each one in its four other states, so nothing gets missed.</p>
+        </div>
+      </div>
+      <div class="body">
+        <p>Open the link Claude gives you. On a phone, if it doesn't open, ask Claude to <b>share it with you</b> and you'll get a private link that works anywhere (step 7).</p>
+        <figure class="shot"><img src="shots/08-screens.png" alt="The prototype's Screens page listing every screen and its states" loading="lazy"></figure>
+        <ul>
+          <li><b>Empty</b>: nothing to show yet. <b>Loading</b>: waiting for data. <b>Error</b>: something failed. <b>Not allowed</b>: this person can't see it.</li>
+          <li>All the data is made up. Ask Claude to <b>reset the demo data</b> to put it back as it started.</li>
+        </ul>
+      </div>
+    </li>
+
+    <!-- 6 -->
+    <li class="step" id="change">
+      <div class="step-head">
+        <div class="num" aria-hidden="true">6</div>
+        <div>
+          <h2>Ask for changes in plain words</h2>
+          <p class="why">Say what you want to see. Claude changes it and tells you what's different on screen.</p>
+        </div>
+      </div>
+      <div class="body">
+        <div class="asks">
+          <div class="ask"><q>Add a settings screen with notification preferences.</q><span>New screen</span></div>
+          <div class="ask"><q>The Save button should go back to the list.</q><span>Where a button goes</span></div>
+          <div class="ask"><q>Show the shift name on each alert card.</q><span>What a screen shows</span></div>
+          <div class="ask"><q>Only supervisors should see the reports screen.</q><span>Who can see it</span></div>
+          <div class="ask"><q>Sign me in as a supervisor.</q><span>See it as someone else</span></div>
+        </div>
+      </div>
+    </li>
+
+    <!-- 7 -->
+    <li class="step" id="share">
+      <div class="step-head">
+        <div class="num" aria-hidden="true">7</div>
+        <div>
+          <h2>Share it with the client</h2>
+          <p class="why">You get a private link. Only the people you name, and the Appmilla team, can open it.</p>
+        </div>
+      </div>
+      <div class="body">
+        <div class="say-label">Say this</div>
+        <div class="say"><q>Share this with the client.</q><button type="button" data-copy="Share this with the client.">Copy</button></div>
+        <figure class="shot"><img src="shots/09-share-reply.png" alt="Claude's reply after being asked to share with the client" loading="lazy"></figure>
+        <p>When the client opens the link, they type their email and get a one-time code. No account, no password.</p>
+        <figure class="shot"><img src="shots/10-client-sign-in.png" alt="The sign-in page the client sees: email, then a one-time code" loading="lazy"></figure>
+        <ul>
+          <li>The client sees the version you shared. Your later changes reach them when you share again.</li>
+          <li>To add or remove someone: <b>“Let jo@acme.example see it too”</b>, <b>“Stop sam@acme.example seeing it”</b>.</li>
+          <li>When the project's finished: <b>“Take the prototype offline.”</b></li>
+        </ul>
+      </div>
+    </li>
+
+    <!-- 8 -->
+    <li class="step" id="signoff">
+      <div class="step-head">
+        <div class="num" aria-hidden="true">8</div>
+        <div>
+          <h2>Get it signed off</h2>
+          <p class="why">Claude checks every screen is there and draws all its states, and lists what changed since the client last signed off.</p>
+        </div>
+      </div>
+      <div class="body">
+        <div class="say-label">Before the client looks</div>
+        <div class="say"><q>Is it ready for sign-off?</q><button type="button" data-copy="Is it ready for sign-off?">Copy</button></div>
+        <div class="say-label">When they've approved it</div>
+        <div class="say"><q>The client signed it off.</q><button type="button" data-copy="The client signed it off.">Copy</button></div>
+        <p>After sign-off the engineering team builds the real product from the prototype's pages.</p>
+      </div>
+    </li>
+  </ol>
+
+  <footer>
+    <h2 style="font-size:1.35rem">You never need to</h2>
+    <div class="never">
+      <div><b>Use Git</b>Claude saves and uploads every change.</div>
+      <div><b>Install anything</b>It all runs in Claude Code.</div>
+      <div><b>Run tests</b>Claude checks the prototype after every change.</div>
+      <div><b>Set up hosting</b>Sharing gives you the link.</div>
+    </div>
+    <div class="note">
+      <h2>If something's not right</h2>
+      <ul>
+        <li>Say what you see, in your own words: “The alerts screen is blank on my phone.”</li>
+        <li>If Claude says <b>sharing isn't switched on</b>, the session isn't using the prototypes environment. Start a new session and pick it in step 2, or ask Rich.</li>
+        <li>Lost the link? Ask <b>“What's the link for the client?”</b></li>
+      </ul>
+    </div>
+  </footer>
+</div>
+
+<script>
+  document.querySelectorAll('[data-copy]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      var text = button.getAttribute('data-copy');
+      var done = function () {
+        button.textContent = 'Copied';
+        setTimeout(function () { button.textContent = 'Copy'; }, 1600);
+      };
+      var fallback = function () {
+        var phrase = button.parentElement.querySelector('q');
+        var range = document.createRange();
+        range.selectNodeContents(phrase);
+        var selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+        button.textContent = 'Selected';
+        setTimeout(function () { button.textContent = 'Copy'; }, 1600);
+      };
+      try {
+        navigator.clipboard.writeText(text).then(done, fallback);
+      } catch (error) {
+        fallback();
+      }
+    });
+  });
+</script>

@@ -3,3 +3,4 @@ dist/
 package-lock.json
 BUILD-BRIEF.md
 share.json
+docs/
