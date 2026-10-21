@@ -1,9 +1,10 @@
 # Prototype
 
 This is a throwaway-speed clickable prototype built from the Claude Design handoff in `design/`. Speed to
-something the designer can click is everything. The only check is the type check and lint the hook runs; there
-are no tests, CI, browser matrix, backend, staging or deployment, whatever any other instructions say. After a
-change, give the preview link. Keep pages free of data: they get data only through `src/data/hooks.ts` and use
+something the designer can click is everything. The check after each change is the type check and lint the hook
+runs. There are no tests, CI, browser matrix, backend, staging or deployment in this repository. Accessibility
+is checked twice, not after every change: the design's colours when the handoff arrives (`npm run contrast`), and
+every screen before client sign-off (`npm run a11y`). After a change, give the preview link. Keep pages free of data: they get data only through `src/data/hooks.ts` and use
 only components from `src/components/`. Add every screen to `src/routes.ts`. Define each business thing once in
 `src/data/types.ts`. Never ask the designer about Git, tests or tooling; handle it and say what changed on screen.
 

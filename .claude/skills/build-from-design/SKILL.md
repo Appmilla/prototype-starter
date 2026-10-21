@@ -51,7 +51,9 @@ Work screen by screen in `SCREENS` order. For the first two or three screens, do
 preview (`npm run dev`, installing first if needed) and give the designer the link to `/screens` before going on.
 
 - **Styles.** Replace `src/styles/tokens.css` and `src/styles/components.css` with the handoff's files. Add any
-  web fonts they use to `index.html`.
+  web fonts they use to `index.html`. Then run `npm run contrast`. If it reports pairs below WCAG AA, tell the
+  designer in plain words which colours, where they're used (a hover state, a status label…) and by how much, and
+  suggest fixing them in Claude Design. Keep building either way: colours are tokens and easy to swap later.
 - **Types.** Each business thing the screens show (an assessment, a profile, an order…) is defined once in
   `src/data/types.ts`. Replace the placeholder `Role` with the roles in the design (who signs in); if the design
   has no roles, keep `member`.

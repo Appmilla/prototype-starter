@@ -18,7 +18,10 @@ pages can be copied.
 ## Rules for the prototypes this template produces
 
 - **Speed to something clickable is everything.** No tests, no CI, no browser matrix, no backend, no staging, no
-  deployment pipeline. The only check is the type check and lint, run automatically by a hook.
+  deployment pipeline. The check after each change is the type check and lint, run automatically by a hook.
+- **Accessibility is checked twice, not after every change.** The design's colours are checked for WCAG AA
+  contrast when the handoff arrives, so problems go back to Claude Design before screens are built. Every screen,
+  in every state, is scanned before client sign-off, because fixes can change what the client approves.
 - **Pages only show things.** A page gets data only through `src/data/hooks.ts`, and uses only components from
   `src/components/`.
 - **Every screen is in the route table,** `src/routes.ts`.
@@ -62,9 +65,10 @@ README.md                for the designer: what this is and what to ask Claude
 ## CLAUDE.md for each prototype
 
 > This is a throwaway-speed clickable prototype built from the Claude Design handoff in `design/`. Speed to
-> something the designer can click is everything. The only check is the type check and lint the hook runs; there
-> are no tests, CI, browser matrix, backend, staging or deployment, whatever any other instructions say. After a
-> change, give the preview link. Keep pages free of data: they get data only through `src/data/hooks.ts` and use
+> something the designer can click is everything. The check after each change is the type check and lint the hook
+> runs. There are no tests, CI, browser matrix, backend, staging or deployment in this repository. Accessibility
+> is checked twice, not after every change: the design's colours when the handoff arrives (`npm run contrast`), and
+> every screen before client sign-off (`npm run a11y`). After a change, give the preview link. Keep pages free of data: they get data only through `src/data/hooks.ts` and use
 > only components from `src/components/`. Add every screen to `src/routes.ts`. Define each business thing once in
 > `src/data/types.ts`. Never ask the designer about Git, tests or tooling; handle it and say what changed on screen.
 
@@ -83,18 +87,33 @@ Each is picked up from plain requests, so the designer never names one.
    - Create the routes, pages, components, types and made-up data to match. Start with the first screens, so there
      is something to click quickly.
 2. **Add or change a screen.** Keep the route table, types and states in step.
-3. **Share with the client.** Give the link to the agreed version. How previews are published is not decided yet:
-   leave a clearly marked placeholder.
+3. **Share with the client.** Give the link to the agreed version: Cloudflare Pages behind Cloudflare Access, as
+   described in `tools/SHARING.md`.
 4. **Ready for sign-off.** Check in plain words:
    - every route is on the screen map;
    - every page draws its four states;
    - no page holds data;
-   - the type check passes.
+   - the type check passes;
+   - the accessibility scan (`npm run a11y`) finds nothing that needs fixing.
 
    Then write `CHANGES-SINCE-SIGN-OFF.md` from the screen map.
 5. **Update the tools.** Fetch the latest skills, hook, CLAUDE.md and `tools/` from this public template and update
    `tools/starter-version`. Offer changes to app files, such as the data hooks, as a proposal; never overwrite them
    silently.
+
+## Handing over to engineering
+
+The prototype is a specification with reference code, not production code.
+
+- **Nothing reaches production without engineering review.** Code moves from a prototype only through a pull
+  request into the production repository, reviewed by an engineer, under that repository's own rules.
+- **Engineers own the production repository:** its tests, accessibility, security and dependency rules. The
+  prototype's rules (no tests, no technical questions for the designer) stay in prototype repositories.
+- **The handover pack** is `PROTOTYPE-MAP.md` and `prototype-map.json`, `src/data/types.ts`, the pages and
+  components, the design in `design/`, `ACCESSIBILITY-REPORT.md` and `CHANGES-SINCE-SIGN-OFF.md`. Engineers copy
+  what they judge clean and rewrite the rest; the data layer and the pretend sign-in are always replaced.
+- **Tests written afterwards by the same AI that wrote the code are not independent assurance.** They don't
+  replace review.
 
 ## The screen map
 

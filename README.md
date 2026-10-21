@@ -40,7 +40,19 @@ template.
 ## Good to know
 
 - It's fast on purpose: no tests, no backend, no deployment. Everything is made up, including sign-in.
+- Accessibility is checked twice: the design's colours as soon as the design arrives, and every screen when you
+  ask whether it's ready for sign-off. Anything to fix is explained in plain words.
 - Add `?state=empty`, `?state=loading`, `?state=error` or `?state=denied` to any address to see that state.
 - `PROTOTYPE-MAP.md` lists every screen, where it lives and what it links to. Claude keeps it up to date.
+
+## Handing over to engineering
+
+The prototype shows engineers what to build; it isn't the production code.
+
+- Nothing from a prototype reaches production without an engineer reviewing it, in the production repository and
+  under its rules.
+- Engineers get the screen map, the business types, the pages and components, the design, the accessibility
+  report and the changes since sign-off. They copy what's clean and rewrite the rest; the made-up data and the
+  pretend sign-in are always replaced.
 
 How this template is built: [BUILD-BRIEF.md](BUILD-BRIEF.md).
