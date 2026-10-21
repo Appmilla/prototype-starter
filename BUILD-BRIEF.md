@@ -101,6 +101,12 @@ Each is picked up from plain requests, so the designer never names one.
    `tools/starter-version`. Offer changes to app files, such as the data hooks, as a proposal; never overwrite them
    silently.
 
+## Licence
+
+The template is MIT licensed (`LICENSE`), so others can reuse the starter. Prototypes made from it are client
+work: the build-from-design skill deletes the copied `LICENSE` when the design goes in, so no prototype carries
+an open licence.
+
 ## Handing over to engineering
 
 The prototype is a specification with reference code, not production code.

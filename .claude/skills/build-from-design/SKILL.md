@@ -16,6 +16,8 @@ fill in the rest.
 - Copy it into `design/` keeping its own folder structure (so `design/source/build.py` and so on). Don't edit
   the handoff after copying; it is the record of what was designed. Leave `design/README.md` in place.
 - If nothing can be found, ask the designer, in plain words, to attach the Claude Design export.
+- Delete `LICENSE` if it's still here. It is the public starter's MIT licence, copied by "Use this template"; a
+  prototype holds client work and stays unlicensed and private.
 
 ## 2. Read the screen list and navigation
 
