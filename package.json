@@ -15,7 +15,8 @@
     "lint": "eslint --max-warnings 0 .",
     "format": "prettier --write .",
     "map": "node --disable-warning=ExperimentalWarning tools/screen-map.ts",
-    "check": "npm run --silent map && tsc -b && eslint --max-warnings 0 ."
+    "check": "npm run --silent map && tsc -b && eslint --max-warnings 0 .",
+    "share": "node --disable-warning=ExperimentalWarning tools/share.ts"
   },
   "dependencies": {
     "react": "19.3.0",

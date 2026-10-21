@@ -1,0 +1,306 @@
+// Publishes the prototype to Cloudflare Pages behind Cloudflare Access, so only the Appmilla team and the people
+// listed in share.json can open the link (they sign in with a one-time code sent to their email).
+//
+//   node tools/share.ts                      build and publish; prints the link
+//   node tools/share.ts --add a@x.com,b@y.com    let these people open it (then publishes)
+//   node tools/share.ts --remove a@x.com     stop these people opening it (then publishes)
+//   node tools/share.ts --status             show the link and who can open it; publishes nothing
+//   node tools/share.ts --unpublish          take the prototype offline: deletes its Cloudflare project and access rule
+//
+// Needs CLOUDFLARE_API_TOKEN (Pages: Edit, Access: Apps and Policies: Edit) and CLOUDFLARE_ACCOUNT_ID in the
+// environment. Never publishes unless the address already asks for a sign-in, so a link is never public.
+
+import { execFileSync, spawnSync } from 'node:child_process';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { basename, dirname, join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+const CONFIG_FILE = 'share.json';
+const WRANGLER = 'wrangler@4.151.3';
+/** Email domains that can always open Appmilla prototypes. */
+const TEAM_DOMAINS = ['appmilla.com'];
+const API = 'https://api.cloudflare.com/client/v4';
+
+interface ShareConfig {
+  /** Cloudflare Pages project name; also the start of the link. */
+  project: string;
+  /** Email addresses outside the team who may open the link, such as the client. */
+  people: string[];
+  /** The link, once published. */
+  url?: string;
+  /** The version last published. */
+  lastShared?: { commit: string; date: string };
+}
+
+function fail(message: string): never {
+  console.error(message);
+  process.exit(1);
+}
+
+function git(...args: string[]) {
+  try {
+    return execFileSync('git', args, { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  } catch {
+    return '';
+  }
+}
+
+/** A valid Pages project name from the repository's name: lowercase letters, digits and hyphens. */
+function defaultProject() {
+  const remote = git('remote', 'get-url', 'origin');
+  const name = remote ? basename(remote).replace(/\.git$/, '') : basename(ROOT);
+  return (
+    name
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+      .slice(0, 58) || 'prototype'
+  );
+}
+
+function loadConfig(): ShareConfig {
+  const file = join(ROOT, CONFIG_FILE);
+  if (!existsSync(file)) return { project: defaultProject(), people: [] };
+  return { people: [], ...(JSON.parse(readFileSync(file, 'utf8')) as Partial<ShareConfig>) } as ShareConfig;
+}
+
+function saveConfig(config: ShareConfig) {
+  writeFileSync(join(ROOT, CONFIG_FILE), `${JSON.stringify(config, null, 2)}\n`);
+}
+
+function emails(value: string | undefined) {
+  const list = (value ?? '')
+    .split(/[\s,]+/)
+    .map((email) => email.trim().toLowerCase())
+    .filter(Boolean);
+  const bad = list.filter((email) => !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email));
+  if (bad.length) fail(`These don't look like email addresses: ${bad.join(', ')}`);
+  return list;
+}
+
+function option(name: string) {
+  const index = process.argv.indexOf(name);
+  return index === -1 ? undefined : (process.argv[index + 1] ?? '');
+}
+
+const token = process.env.CLOUDFLARE_API_TOKEN;
+const account = process.env.CLOUDFLARE_ACCOUNT_ID;
+
+interface ApiResult<T> {
+  success: boolean;
+  result: T;
+  errors: { code: number; message: string }[];
+}
+
+async function api<T>(method: string, path: string, body?: unknown): Promise<{ status: number; data: ApiResult<T> }> {
+  const response = await fetch(`${API}/accounts/${account}${path}`, {
+    method,
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data = (await response.json()) as ApiResult<T>;
+  return { status: response.status, data };
+}
+
+async function apiOk<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const { status, data } = await api<T>(method, path, body);
+  if (!data.success) {
+    const why = data.errors.map((error) => `${error.message} (${error.code})`).join('; ');
+    fail(`Cloudflare refused ${method} ${path} (HTTP ${status}): ${why}`);
+  }
+  return data.result;
+}
+
+interface PagesProject {
+  name: string;
+  subdomain: string;
+}
+
+async function findProject(name: string): Promise<PagesProject | null> {
+  const { status, data } = await api<PagesProject>('GET', `/pages/projects/${name}`);
+  if (data.success) return data.result;
+  if (status === 404) return null;
+  return fail(
+    `Couldn't look up the Cloudflare Pages project "${name}": ${data.errors.map((e) => e.message).join('; ')}`,
+  );
+}
+
+interface AccessApp {
+  id: string;
+  name: string;
+}
+
+function accessName(project: string) {
+  return `Prototype: ${project}`;
+}
+
+async function findAccessApp(project: string): Promise<AccessApp | null> {
+  for (let page = 1; ; page++) {
+    const apps = await apiOk<AccessApp[]>('GET', `/access/apps?per_page=100&page=${page}`);
+    const found = apps.find((app) => app.name === accessName(project));
+    if (found) return found;
+    if (apps.length < 100) return null;
+  }
+}
+
+/** Creates or updates the access rule: the team's email domains and the listed people, on every address. */
+async function saveAccessApp(project: string, host: string, people: string[]) {
+  const body = {
+    name: accessName(project),
+    type: 'self_hosted',
+    domain: host,
+    destinations: [
+      { type: 'public', uri: host },
+      { type: 'public', uri: `*.${host}` },
+    ],
+    session_duration: '720h',
+    app_launcher_visible: false,
+    policies: [
+      {
+        name: 'Appmilla team and invited people',
+        decision: 'allow',
+        include: [
+          ...TEAM_DOMAINS.map((domain) => ({ email_domain: { domain } })),
+          ...people.map((email) => ({ email: { email } })),
+        ],
+      },
+    ],
+  };
+  const existing = await findAccessApp(project);
+  if (existing) await apiOk('PUT', `/access/apps/${existing.id}`, body);
+  else await apiOk('POST', '/access/apps', body);
+}
+
+/** True when the address sends visitors to the Cloudflare Access sign-in instead of showing the prototype. */
+async function asksForSignIn(url: string) {
+  try {
+    const response = await fetch(url, { redirect: 'manual' });
+    const location = response.headers.get('location') ?? '';
+    return response.status >= 300 && response.status < 400 && location.includes('cloudflareaccess.com');
+  } catch {
+    return false;
+  }
+}
+
+async function waitForSignIn(host: string) {
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const results = await Promise.all([asksForSignIn(`https://${host}/`), asksForSignIn(`https://check.${host}/`)]);
+    if (results.every(Boolean)) return true;
+    await new Promise((done) => setTimeout(done, 5000));
+  }
+  return false;
+}
+
+function run(command: string, args: string[]) {
+  const result = spawnSync(command, args, { cwd: ROOT, stdio: 'inherit', shell: process.platform === 'win32' });
+  if (result.status !== 0) fail(`${command} ${args.join(' ')} failed.`);
+}
+
+function whoCanOpen(config: ShareConfig) {
+  const team = TEAM_DOMAINS.map((domain) => `anyone with an @${domain} email`).join(', ');
+  return config.people.length ? `${team}, and ${config.people.join(', ')}` : `${team} (no one else yet)`;
+}
+
+async function main() {
+  const config = loadConfig();
+  const add = emails(option('--add'));
+  const remove = emails(option('--remove'));
+  if (add.length || remove.length) {
+    config.people = [...new Set([...config.people, ...add])].filter((email) => !remove.includes(email)).sort();
+    saveConfig(config);
+  }
+
+  if (process.argv.includes('--status')) {
+    console.log(config.url ? `Link: ${config.url}` : 'Not published yet.');
+    if (config.lastShared)
+      console.log(`Last published: ${config.lastShared.date}, commit ${config.lastShared.commit}.`);
+    console.log(`Who can open it: ${whoCanOpen(config)}.`);
+    return;
+  }
+
+  if (!token || !account) {
+    fail(
+      [
+        'Publishing isn’t set up in this environment yet.',
+        'It needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID as environment variables, and network access to',
+        'api.cloudflare.com and *.pages.dev. See "Publishing" in tools/SHARING.md for the one-time setup.',
+      ].join('\n'),
+    );
+  }
+
+  if (process.argv.includes('--unpublish')) {
+    const app = await findAccessApp(config.project);
+    if (await findProject(config.project)) await apiOk('DELETE', `/pages/projects/${config.project}`);
+    if (app) await apiOk('DELETE', `/access/apps/${app.id}`);
+    delete config.url;
+    delete config.lastShared;
+    saveConfig(config);
+    console.log(`Taken offline: the Cloudflare project "${config.project}" and its access rule are deleted.`);
+    return;
+  }
+
+  const project =
+    (await findProject(config.project)) ??
+    (await apiOk<PagesProject>('POST', '/pages/projects', { name: config.project, production_branch: 'main' }));
+  const host = project.subdomain;
+
+  await saveAccessApp(config.project, host, config.people);
+  if (!(await waitForSignIn(host))) {
+    fail(
+      `Not publishing: https://${host} doesn't ask visitors to sign in yet, so the prototype would be public.\n` +
+        'Check that Cloudflare Zero Trust is set up on the account, then try again.',
+    );
+  }
+
+  run('npm', ['run', 'build']);
+  const commit = git('rev-parse', '--short', 'HEAD') || 'unknown';
+  const dirty = git('status', '--porcelain') !== '';
+  run('npx', [
+    '--yes',
+    WRANGLER,
+    'pages',
+    'deploy',
+    'dist',
+    '--project-name',
+    config.project,
+    '--branch',
+    'main',
+    '--commit-hash',
+    commit,
+    '--commit-message',
+    git('log', '-1', '--format=%s') || 'Prototype',
+    `--commit-dirty=${dirty}`,
+  ]);
+
+  if (!(await waitForSignIn(host))) {
+    fail(`Published, but https://${host} no longer asks visitors to sign in. Take it offline with --unpublish.`);
+  }
+
+  config.url = `https://${host}`;
+  config.lastShared = {
+    commit: dirty ? `${commit} (with uncommitted changes)` : commit,
+    date: new Date().toISOString(),
+  };
+  saveConfig(config);
+  console.log(`Published: ${config.url}`);
+  console.log(`Who can open it: ${whoCanOpen(config)}. They sign in with a code sent to their email.`);
+}
+
+// Node's fetch ignores HTTPS_PROXY unless asked; behind a proxy (as in Claude Code on the web), run again with it on.
+if ((process.env.HTTPS_PROXY || process.env.https_proxy) && !process.env.NODE_USE_ENV_PROXY) {
+  const again = spawnSync(
+    process.execPath,
+    [...process.execArgv, '--disable-warning=UNDICI-EHPA', ...process.argv.slice(1)],
+    {
+      stdio: 'inherit',
+      env: { ...process.env, NODE_USE_ENV_PROXY: '1' },
+    },
+  );
+  process.exit(again.status ?? 1);
+} else {
+  await main().catch((error: unknown) => {
+    const cause = error instanceof Error && error.cause instanceof Error ? ` (${error.cause.message})` : '';
+    fail(`Couldn't reach Cloudflare: ${error instanceof Error ? error.message : String(error)}${cause}`);
+  });
+}
