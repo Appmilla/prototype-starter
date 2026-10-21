@@ -16,5 +16,8 @@ only components from `src/components/`. Add every screen to `src/routes.ts`. Def
 - `/screens` lists every screen and state. `src/auth/` is the pretend sign-in.
 - `prototype-map.json` and `PROTOTYPE-MAP.md` are written by `tools/screen-map.ts` (the hook runs it); don't edit
   them by hand.
-- Start the preview with `npm run dev` (port 5173), installing packages first if `node_modules` is missing.
+- Start the preview with `npm run dev` (port 5173), installing packages first if `node_modules` is missing. In
+  Claude Code on the web that link only opens inside the session, not in the designer's browser or the desktop
+  app: send screenshots of what changed, and when they want to click it themselves, share it with just the team
+  (the share-with-client skill) and give that link.
 - The only publishing is sharing with the client: `npm run share`, as the share-with-client skill describes.

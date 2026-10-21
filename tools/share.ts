@@ -145,7 +145,15 @@ let accountId = process.env.CLOUDFLARE_ACCOUNT_ID ?? '';
 async function account() {
   if (accountId) return accountId;
   const accounts = await callOk<{ id: string; name: string }[]>('GET', '/accounts');
-  if (accounts.length !== 1) {
+  if (accounts.length === 0) {
+    // Usual for a token scoped to one account: it works, but listing accounts needs Account Settings · Read.
+    fail(
+      'Cloudflare accepted the API token but won’t say which account it belongs to. Set CLOUDFLARE_ACCOUNT_ID to ' +
+        'Appmilla’s account ID (on the account’s Overview page in the Cloudflare dashboard; it isn’t a secret), or ' +
+        `give the token Account · Account Settings · Read. ${SETUP}`,
+    );
+  }
+  if (accounts.length > 1) {
     fail(`The API token can see ${accounts.length} Cloudflare accounts; set CLOUDFLARE_ACCOUNT_ID to choose one.`);
   }
   accountId = accounts[0].id;
@@ -251,24 +259,39 @@ async function saveAccessApp(project: string, host: string, people: string[]) {
   else await accountApiOk('POST', '/access/apps', body);
 }
 
-/** True when the address sends visitors to the Cloudflare Access sign-in instead of showing the prototype. */
-async function asksForSignIn(url: string) {
+/**
+ * What visitors get at an address: sent to the Cloudflare Access sign-in ('asks'), shown a page without signing in
+ * ('open'), or nothing yet ('unreachable'), as with a brand-new project whose address isn't online.
+ */
+async function signInCheck(url: string): Promise<'asks' | 'open' | 'unreachable'> {
   try {
     const response = await fetch(url, { redirect: 'manual' });
     const location = response.headers.get('location') ?? '';
-    return response.status >= 300 && response.status < 400 && location.includes('cloudflareaccess.com');
+    if (response.status >= 300 && response.status < 400 && location.includes('cloudflareaccess.com')) return 'asks';
+    return response.status >= 500 ? 'unreachable' : 'open';
   } catch {
-    return false;
+    return 'unreachable';
   }
 }
 
-async function waitForSignIn(host: string) {
-  for (let attempt = 0; attempt < 12; attempt++) {
-    const results = await Promise.all([asksForSignIn(`https://${host}/`), asksForSignIn(`https://check.${host}/`)]);
-    if (results.every(Boolean)) return true;
+/**
+ * Waits until the address and a subdomain of it both ask for a sign-in. A new project's address can take several
+ * minutes to come online, so this waits up to six minutes. Returns 'open' if a page was ever shown without one.
+ */
+async function waitForSignIn(host: string): Promise<'asks' | 'open' | 'unreachable'> {
+  let said = false;
+  for (let attempt = 0; attempt < 72; attempt++) {
+    const results = await Promise.all([signInCheck(`https://${host}/`), signInCheck(`https://check.${host}/`)]);
+    if (results.every((result) => result === 'asks')) return 'asks';
+    if (results.includes('open') && attempt >= 12) return 'open';
+    if (!said && results.includes('unreachable')) {
+      console.log(`Waiting for https://${host} to come online (a new prototype's address can take a few minutes)…`);
+      said = true;
+    }
     await sleep(5000);
   }
-  return false;
+  const last = await Promise.all([signInCheck(`https://${host}/`), signInCheck(`https://check.${host}/`)]);
+  return last.includes('open') ? 'open' : 'unreachable';
 }
 
 function sleep(ms: number) {
@@ -364,10 +387,18 @@ async function main() {
   const host = project.subdomain;
 
   await saveAccessApp(config.project, host, config.people);
-  if (!(await waitForSignIn(host))) {
+  const before = await waitForSignIn(host);
+  if (before === 'open') {
     fail(
       `Not publishing: https://${host} doesn't ask visitors to sign in yet, so the prototype would be public.\n` +
         `Check that Cloudflare Zero Trust is set up on the account. ${SETUP}`,
+    );
+  }
+  if (before === 'unreachable') {
+    fail(
+      `Not publishing yet: https://${host} isn't reachable from here, so it can't be checked for a sign-in.\n` +
+        'A new prototype’s address can take a few more minutes to come online: run the share again shortly. If it ' +
+        `still fails, check this environment's network access allows *.pages.dev. ${SETUP}`,
     );
   }
 
@@ -379,8 +410,12 @@ async function main() {
   if (push.status !== 0) fail(`Couldn't push this version to the ${SHARED_BRANCH} branch.`);
   await waitForDeployment(config.project, commit);
 
-  if (!(await waitForSignIn(host))) {
+  const after = await waitForSignIn(host);
+  if (after === 'open') {
     fail(`Published, but https://${host} no longer asks visitors to sign in. Take it offline with --unpublish.`);
+  }
+  if (after === 'unreachable') {
+    fail(`Published, but https://${host} couldn't be reached to check its sign-in. Run the share again to check.`);
   }
 
   config.url = `https://${host}`;

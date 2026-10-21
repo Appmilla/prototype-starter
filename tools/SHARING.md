@@ -39,11 +39,16 @@ Done once by someone with access to Appmilla's Cloudflare account. Nothing here 
    session's side panel):
    - **Network secrets:** add the token for the host `api.cloudflare.com`, sent as `Authorization: Bearer <token>`.
    - **Network access:** allow `api.cloudflare.com` and `*.pages.dev` (keep package managers allowed).
+   - **Environment variables:** add `CLOUDFLARE_ACCOUNT_ID` set to Appmilla's account ID, from the account's
+     **Overview** page in the Cloudflare dashboard. It isn't a secret. A token limited to one account can't list
+     accounts, so without this the share can't tell which account to publish to (or give the token Account ·
+     **Account Settings** · Read as well).
 
    New sessions pick these up. Anyone who can use that environment can publish, so keep it for the people making
    prototypes.
 
-5. **Check it.** In a new session, ask Claude to do a test share. Open the link in a private browser window: it
+5. **Check it.** In a new session, ask Claude to do a test share. The first share of each prototype waits for its new
+   address to come online, which can take a few minutes. Open the link in a private browser window: it
    should ask for an email before showing anything. Then ask Claude to take the test offline.
 
 Sharing from the Claude desktop app instead needs `CLOUDFLARE_API_TOKEN` set on that computer, where Claude can
@@ -55,6 +60,15 @@ read it; sharing from Claude Code on the web keeps the token out of reach.
   seat the first time they sign in. Free seats from finished projects on the **Users** page in Zero Trust.
 - **Cloudflare Pages:** about 100 projects and 500 builds a month per account. Take finished prototypes offline
   with `npm run share -- --unpublish`.
+
+## When a share stops
+
+- **"Cloudflare accepted the API token but won't say which account it belongs to"**: `CLOUDFLARE_ACCOUNT_ID` isn't
+  set (step 4). For a one-off, run `CLOUDFLARE_ACCOUNT_ID=<id> npm run share`.
+- **"isn't reachable from here"**: usually a new prototype whose address isn't online yet. Run the share again in a
+  few minutes. If it keeps happening, check `*.pages.dev` is in the environment's allowed domains.
+- **"doesn't ask visitors to sign in yet"**: the address is online but Cloudflare Access isn't protecting it. Check
+  Zero Trust (step 1). The share never publishes in this case.
 
 ## Day to day
 

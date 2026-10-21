@@ -11,15 +11,18 @@ public. How it works and the one-time setup are in `tools/SHARING.md`.
 
 Share the agreed version: what the designer has looked at and is happy with, not work in progress.
 
-1. **Who should see it.** Check `npm run share -- --status`. If no one outside Appmilla is invited and the
-   designer hasn't said who the client is, ask for the email addresses of the people who should see it. That's
-   the one question to ask; never ask about tooling.
+1. **Who should see it.** Check `npm run share -- --status`. If the designer only wants to see it themselves (the
+   preview link doesn't open outside a cloud session), publish without inviting anyone: only the Appmilla team can
+   open it. Otherwise, if no one outside Appmilla is invited and the designer hasn't said who the client is, ask
+   for the email addresses of the people who should see it. That's the one question to ask; never ask about
+   tooling.
 2. **Ready.** Commit and push everything, and make sure `npm run check` passes.
 3. **Publish.** `npm run share -- --add <emails>` for new people, otherwise `npm run share`. It pushes the commit
    to the `shared` branch, waits for Cloudflare to build it at this prototype's link (the same link every time)
    and checks the link asks for a sign-in. Never print, echo or ask for the Cloudflare token.
 4. **Record it.** Commit `share.json` ("Share the prototype with the client"), tag the commit
-   `shared/<yyyy-mm-dd>` (add `-2`, `-3`… if taken) and push the commit and the tag.
+   `shared/<yyyy-mm-dd>` (add `-2`, `-3`… if taken) and push the commit and the tag. If the session can't push
+   tags, the share still stands: push the commit and mention it in one line.
 5. **Tell the designer**, in plain words: the link, who can open it, that each person signs in with a code sent to
    their email, and which version it is ("the version with the new checkout screens"). Later changes don't
    reach the client until the next share.
@@ -29,6 +32,15 @@ Other requests:
 - **Invite or remove someone:** `npm run share -- --add <emails>` or `--remove <emails>`. Both republish the
   current version, so only do this from a commit the designer is happy to show; otherwise say so first.
 - **Take it offline** (only when the designer asks): `npm run share -- --unpublish`, then commit `share.json`.
+
+If the command says Cloudflare won't say which account the token belongs to, ask the designer for Appmilla's
+Cloudflare **Account ID** (on the account's Overview page; it isn't a secret), run
+`CLOUDFLARE_ACCOUNT_ID=<id> npm run share`, and suggest adding it as an environment variable as `tools/SHARING.md`
+describes, so later sessions don't need it.
+
+If it says the address isn't reachable yet, that is usually a new prototype whose address isn't online: wait a few
+minutes and run the share again before suspecting the setup. Don't tell the designer their settings are wrong
+until a second try has failed.
 
 If publishing isn't set up (the command says Cloudflare didn't accept the token) or Cloudflare can't be reached,
 don't look for another way to publish. Tell the designer that sharing isn't switched on for their Claude Code
