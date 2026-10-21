@@ -23,6 +23,7 @@ in any shot.
 | `08-screens.png`         | The trial prototype's `/screens` page. Same condition as 07.                                                                                                                                                |
 | `09-share-reply.png`     | Claude's reply after "Share this with the client." Only once a real share has happened.                                                                                                                     |
 | `10-client-sign-in.png`  | The sign-in page a client sees when opening a shared link (email, then one-time code), in a private window. Only once a real share has happened.                                                            |
+| `11-prototype-sign-in.png` | The prototype's own (pretend) sign-in page, which appears after the Cloudflare sign-in. Only once a real share has happened. |
 
 Don't run the trial build or a share just to get a shot; ask Rich first.
 
