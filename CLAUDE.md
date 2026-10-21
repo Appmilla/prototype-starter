@@ -17,3 +17,4 @@ only components from `src/components/`. Add every screen to `src/routes.ts`. Def
 - `prototype-map.json` and `PROTOTYPE-MAP.md` are written by `tools/screen-map.ts` (the hook runs it); don't edit
   them by hand.
 - Start the preview with `npm run dev` (port 5173), installing packages first if `node_modules` is missing.
+- The only publishing is sharing with the client: `npm run share`, as the share-with-client skill describes.

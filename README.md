@@ -26,7 +26,10 @@ Claude puts the design in `design/`, builds the first screens and gives you a li
 
 **With the client:**
 
-- "Share this with the client." Gives you the link to the version you've agreed.
+- "Share this with the client." Claude asks who should see it, then gives you a private link to the version
+  you've agreed. Only the people you name (and the Appmilla team) can open it; they sign in with a code sent to
+  their email. Later changes reach the client when you share again.
+- "Let jo@example.com see it too", "Take the prototype offline."
 - "Is it ready for sign-off?" Claude checks every screen and its states, and writes what changed since the last
   sign-off.
 - "The client signed it off." Claude marks this version as signed off.

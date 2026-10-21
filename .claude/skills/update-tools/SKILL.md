@@ -27,7 +27,7 @@ tools came from the version in `tools/starter-version`.
    git show FETCH_HEAD:CLAUDE.md > CLAUDE.md   # then restore this prototype's own additions
    ```
 
-   Skills removed from the template: remove them here too.
+   Skills removed from the template: remove them here too. `share.json` belongs to the prototype; never replace it.
 
 3. **App files: propose, never overwrite silently.** Compare the template's versions of the starter's app files
    with this prototype's: `src/data/hooks.ts`, `src/data/errors.ts`, `src/data/mock/store.ts`, `src/auth/`,
