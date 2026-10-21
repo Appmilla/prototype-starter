@@ -1,14 +1,16 @@
 // Publishes the prototype to Cloudflare Pages behind Cloudflare Access, so only the Appmilla team and the people
 // listed in share.json can open the link (they sign in with a one-time code sent to their email).
 //
-//   node tools/share.ts                      build and publish; prints the link
+//   node tools/share.ts                          publish the current commit; prints the link
 //   node tools/share.ts --add a@x.com,b@y.com    let these people open it (then publishes)
-//   node tools/share.ts --remove a@x.com     stop these people opening it (then publishes)
-//   node tools/share.ts --status             show the link and who can open it; publishes nothing
-//   node tools/share.ts --unpublish          take the prototype offline: deletes its Cloudflare project and access rule
+//   node tools/share.ts --remove a@x.com         stop these people opening it (then publishes)
+//   node tools/share.ts --status                 show the link and who can open it; publishes nothing
+//   node tools/share.ts --unpublish              take it offline: deletes its Cloudflare project and access rule
 //
-// Needs CLOUDFLARE_API_TOKEN (Pages: Edit, Access: Apps and Policies: Edit) and CLOUDFLARE_ACCOUNT_ID in the
-// environment. Never publishes unless the address already asks for a sign-in, so a link is never public.
+// Cloudflare builds the prototype from GitHub: this script pushes the commit to the `shared` branch and asks
+// Cloudflare to build it. The Cloudflare API token never needs to be visible here: in Claude Code on the web it is
+// a network secret that is added to requests to api.cloudflare.com on the way out. Elsewhere, set
+// CLOUDFLARE_API_TOKEN. Never publishes unless the address already asks for a sign-in, so a link is never public.
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
@@ -17,10 +19,11 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const CONFIG_FILE = 'share.json';
-const WRANGLER = 'wrangler@4.151.3';
+const SHARED_BRANCH = 'shared';
 /** Email domains that can always open Appmilla prototypes. */
 const TEAM_DOMAINS = ['appmilla.com'];
 const API = 'https://api.cloudflare.com/client/v4';
+const SETUP = 'See "One-time setup" in tools/SHARING.md.';
 
 interface ShareConfig {
   /** Cloudflare Pages project name; also the start of the link. */
@@ -44,6 +47,16 @@ function git(...args: string[]) {
   } catch {
     return '';
   }
+}
+
+/** The GitHub owner and repository name, from the origin remote's last two path segments. */
+function githubRepo() {
+  const parts = git('remote', 'get-url', 'origin')
+    .replace(/\.git$/, '')
+    .split(/[/:]/)
+    .filter(Boolean);
+  if (parts.length < 2) fail('Couldn’t tell which GitHub repository this is from the origin remote.');
+  return { owner: parts[parts.length - 2], repo: parts[parts.length - 1] };
 }
 
 /** A valid Pages project name from the repository's name: lowercase letters, digits and hyphens. */
@@ -84,32 +97,67 @@ function option(name: string) {
   return index === -1 ? undefined : (process.argv[index + 1] ?? '');
 }
 
-const token = process.env.CLOUDFLARE_API_TOKEN;
-const account = process.env.CLOUDFLARE_ACCOUNT_ID;
-
 interface ApiResult<T> {
   success: boolean;
   result: T;
   errors: { code: number; message: string }[];
 }
 
-async function api<T>(method: string, path: string, body?: unknown): Promise<{ status: number; data: ApiResult<T> }> {
-  const response = await fetch(`${API}/accounts/${account}${path}`, {
+/** Calls the Cloudflare API. The token header is only sent when CLOUDFLARE_API_TOKEN is set (outside the cloud). */
+async function call<T>(method: string, path: string, body?: unknown) {
+  const headers: Record<string, string> = {};
+  if (process.env.CLOUDFLARE_API_TOKEN) headers.Authorization = `Bearer ${process.env.CLOUDFLARE_API_TOKEN}`;
+  if (body !== undefined && !(body instanceof FormData)) headers['Content-Type'] = 'application/json';
+  const response = await fetch(`${API}${path}`, {
     method,
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    headers,
+    body: body === undefined ? undefined : body instanceof FormData ? body : JSON.stringify(body),
   });
-  const data = (await response.json()) as ApiResult<T>;
+  let data: ApiResult<T>;
+  try {
+    data = (await response.json()) as ApiResult<T>;
+  } catch {
+    data = {
+      success: false,
+      result: undefined as T,
+      errors: [{ code: response.status, message: response.statusText }],
+    };
+  }
+  const authCodes = [9106, 9109, 10000, 10001];
+  if (response.status === 401 || data.errors?.some((error) => authCodes.includes(error.code))) {
+    fail(`Cloudflare didn’t accept the API token, or none was sent. ${SETUP}`);
+  }
   return { status: response.status, data };
 }
 
-async function apiOk<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const { status, data } = await api<T>(method, path, body);
+async function callOk<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const { status, data } = await call<T>(method, path, body);
   if (!data.success) {
     const why = data.errors.map((error) => `${error.message} (${error.code})`).join('; ');
     fail(`Cloudflare refused ${method} ${path} (HTTP ${status}): ${why}`);
   }
   return data.result;
+}
+
+let accountId = process.env.CLOUDFLARE_ACCOUNT_ID ?? '';
+
+/** The account the token belongs to; set CLOUDFLARE_ACCOUNT_ID if the token can see more than one. */
+async function account() {
+  if (accountId) return accountId;
+  const accounts = await callOk<{ id: string; name: string }[]>('GET', '/accounts');
+  if (accounts.length !== 1) {
+    fail(`The API token can see ${accounts.length} Cloudflare accounts; set CLOUDFLARE_ACCOUNT_ID to choose one.`);
+  }
+  accountId = accounts[0].id;
+  return accountId;
+}
+
+async function accountApi<T>(method: string, path: string, body?: unknown) {
+  return call<T>(method, `/accounts/${await account()}${path}`, body);
+}
+
+async function accountApiOk<T>(method: string, path: string, body?: unknown) {
+  return callOk<T>(method, `/accounts/${await account()}${path}`, body);
 }
 
 interface PagesProject {
@@ -118,11 +166,42 @@ interface PagesProject {
 }
 
 async function findProject(name: string): Promise<PagesProject | null> {
-  const { status, data } = await api<PagesProject>('GET', `/pages/projects/${name}`);
+  const { status, data } = await accountApi<PagesProject>('GET', `/pages/projects/${name}`);
   if (data.success) return data.result;
   if (status === 404) return null;
   return fail(
     `Couldn't look up the Cloudflare Pages project "${name}": ${data.errors.map((e) => e.message).join('; ')}`,
+  );
+}
+
+/** A Pages project that Cloudflare builds from this repository's `shared` branch, and only that branch. */
+async function createProject(name: string): Promise<PagesProject> {
+  const { owner, repo } = githubRepo();
+  const { status, data } = await accountApi<PagesProject>('POST', '/pages/projects', {
+    name,
+    production_branch: SHARED_BRANCH,
+    source: {
+      type: 'github',
+      config: {
+        owner,
+        repo_name: repo,
+        production_branch: SHARED_BRANCH,
+        pr_comments_enabled: false,
+        deployments_enabled: true,
+        production_deployments_enabled: true,
+        preview_deployment_setting: 'none',
+      },
+    },
+    build_config: { build_command: 'npm run build', destination_dir: 'dist', root_dir: '' },
+    deployment_configs: {
+      production: { env_vars: { NODE_VERSION: { type: 'plain_text', value: '22' } } },
+    },
+  });
+  if (data.success) return data.result;
+  const why = data.errors.map((error) => `${error.message} (${error.code})`).join('; ');
+  return fail(
+    `Cloudflare couldn't create the project from ${owner}/${repo} (HTTP ${status}): ${why}\n` +
+      `Cloudflare may not be connected to the ${owner} GitHub organisation yet. ${SETUP}`,
   );
 }
 
@@ -137,7 +216,7 @@ function accessName(project: string) {
 
 async function findAccessApp(project: string): Promise<AccessApp | null> {
   for (let page = 1; ; page++) {
-    const apps = await apiOk<AccessApp[]>('GET', `/access/apps?per_page=100&page=${page}`);
+    const apps = await accountApiOk<AccessApp[]>('GET', `/access/apps?per_page=100&page=${page}`);
     const found = apps.find((app) => app.name === accessName(project));
     if (found) return found;
     if (apps.length < 100) return null;
@@ -168,8 +247,8 @@ async function saveAccessApp(project: string, host: string, people: string[]) {
     ],
   };
   const existing = await findAccessApp(project);
-  if (existing) await apiOk('PUT', `/access/apps/${existing.id}`, body);
-  else await apiOk('POST', '/access/apps', body);
+  if (existing) await accountApiOk('PUT', `/access/apps/${existing.id}`, body);
+  else await accountApiOk('POST', '/access/apps', body);
 }
 
 /** True when the address sends visitors to the Cloudflare Access sign-in instead of showing the prototype. */
@@ -187,14 +266,59 @@ async function waitForSignIn(host: string) {
   for (let attempt = 0; attempt < 12; attempt++) {
     const results = await Promise.all([asksForSignIn(`https://${host}/`), asksForSignIn(`https://check.${host}/`)]);
     if (results.every(Boolean)) return true;
-    await new Promise((done) => setTimeout(done, 5000));
+    await sleep(5000);
   }
   return false;
 }
 
-function run(command: string, args: string[]) {
-  const result = spawnSync(command, args, { cwd: ROOT, stdio: 'inherit', shell: process.platform === 'win32' });
-  if (result.status !== 0) fail(`${command} ${args.join(' ')} failed.`);
+function sleep(ms: number) {
+  return new Promise((done) => setTimeout(done, ms));
+}
+
+interface Deployment {
+  id: string;
+  latest_stage: { name: string; status: string };
+  deployment_trigger?: { metadata?: { commit_hash?: string; branch?: string } };
+}
+
+async function deploymentFor(project: string, commit: string) {
+  const list = await accountApiOk<Deployment[]>('GET', `/pages/projects/${project}/deployments?env=production`);
+  return (
+    list.find((deployment) => {
+      const hash = deployment.deployment_trigger?.metadata?.commit_hash;
+      return Boolean(hash) && (hash!.startsWith(commit) || commit.startsWith(hash!));
+    }) ?? null
+  );
+}
+
+/** Waits for Cloudflare to build and publish the commit. Starts the build itself if the push didn't. */
+async function waitForDeployment(project: string, commit: string) {
+  let deployment: Deployment | null = null;
+  for (let attempt = 0; attempt < 6 && !deployment; attempt++) {
+    await sleep(5000);
+    deployment = await deploymentFor(project, commit);
+  }
+  if (!deployment) {
+    const form = new FormData();
+    form.set('branch', SHARED_BRANCH);
+    deployment = await accountApiOk<Deployment>('POST', `/pages/projects/${project}/deployments`, form);
+  }
+  console.log('Cloudflare is building the prototype…');
+  for (let attempt = 0; attempt < 90; attempt++) {
+    const current = await accountApiOk<Deployment>('GET', `/pages/projects/${project}/deployments/${deployment.id}`);
+    const { name, status } = current.latest_stage;
+    if (name === 'deploy' && status === 'success') return;
+    if (status === 'failure' || status === 'canceled') {
+      const logs = await accountApi<{ data: { line: string }[] }>(
+        'GET',
+        `/pages/projects/${project}/deployments/${deployment.id}/history/logs`,
+      );
+      const tail = (logs.data.result?.data ?? []).slice(-30).map((entry) => entry.line);
+      fail([`Cloudflare's build stopped at "${name}" (${status}). The end of its log:`, ...tail].join('\n'));
+    }
+    await sleep(10000);
+  }
+  fail('Cloudflare is still building after 15 minutes; check the project in the Cloudflare dashboard.');
 }
 
 function whoCanOpen(config: ShareConfig) {
@@ -213,26 +337,17 @@ async function main() {
 
   if (process.argv.includes('--status')) {
     console.log(config.url ? `Link: ${config.url}` : 'Not published yet.');
-    if (config.lastShared)
+    if (config.lastShared) {
       console.log(`Last published: ${config.lastShared.date}, commit ${config.lastShared.commit}.`);
+    }
     console.log(`Who can open it: ${whoCanOpen(config)}.`);
     return;
   }
 
-  if (!token || !account) {
-    fail(
-      [
-        'Publishing isn’t set up in this environment yet.',
-        'It needs CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID as environment variables, and network access to',
-        'api.cloudflare.com and *.pages.dev. See "Publishing" in tools/SHARING.md for the one-time setup.',
-      ].join('\n'),
-    );
-  }
-
   if (process.argv.includes('--unpublish')) {
     const app = await findAccessApp(config.project);
-    if (await findProject(config.project)) await apiOk('DELETE', `/pages/projects/${config.project}`);
-    if (app) await apiOk('DELETE', `/access/apps/${app.id}`);
+    if (await findProject(config.project)) await accountApiOk('DELETE', `/pages/projects/${config.project}`);
+    if (app) await accountApiOk('DELETE', `/access/apps/${app.id}`);
     delete config.url;
     delete config.lastShared;
     saveConfig(config);
@@ -240,48 +355,36 @@ async function main() {
     return;
   }
 
-  const project =
-    (await findProject(config.project)) ??
-    (await apiOk<PagesProject>('POST', '/pages/projects', { name: config.project, production_branch: 'main' }));
+  const uncommitted = git('status', '--porcelain')
+    .split('\n')
+    .filter((line) => line && !line.endsWith(CONFIG_FILE));
+  if (uncommitted.length) fail('Commit the changes first: only committed work can be shared.');
+
+  const project = (await findProject(config.project)) ?? (await createProject(config.project));
   const host = project.subdomain;
 
   await saveAccessApp(config.project, host, config.people);
   if (!(await waitForSignIn(host))) {
     fail(
       `Not publishing: https://${host} doesn't ask visitors to sign in yet, so the prototype would be public.\n` +
-        'Check that Cloudflare Zero Trust is set up on the account, then try again.',
+        `Check that Cloudflare Zero Trust is set up on the account. ${SETUP}`,
     );
   }
 
-  run('npm', ['run', 'build']);
-  const commit = git('rev-parse', '--short', 'HEAD') || 'unknown';
-  const dirty = git('status', '--porcelain') !== '';
-  run('npx', [
-    '--yes',
-    WRANGLER,
-    'pages',
-    'deploy',
-    'dist',
-    '--project-name',
-    config.project,
-    '--branch',
-    'main',
-    '--commit-hash',
-    commit,
-    '--commit-message',
-    git('log', '-1', '--format=%s') || 'Prototype',
-    `--commit-dirty=${dirty}`,
-  ]);
+  const commit = git('rev-parse', 'HEAD');
+  const push = spawnSync('git', ['push', '--force', 'origin', `HEAD:refs/heads/${SHARED_BRANCH}`], {
+    cwd: ROOT,
+    stdio: 'inherit',
+  });
+  if (push.status !== 0) fail(`Couldn't push this version to the ${SHARED_BRANCH} branch.`);
+  await waitForDeployment(config.project, commit);
 
   if (!(await waitForSignIn(host))) {
     fail(`Published, but https://${host} no longer asks visitors to sign in. Take it offline with --unpublish.`);
   }
 
   config.url = `https://${host}`;
-  config.lastShared = {
-    commit: dirty ? `${commit} (with uncommitted changes)` : commit,
-    date: new Date().toISOString(),
-  };
+  config.lastShared = { commit: commit.slice(0, 7), date: new Date().toISOString() };
   saveConfig(config);
   console.log(`Published: ${config.url}`);
   console.log(`Who can open it: ${whoCanOpen(config)}. They sign in with a code sent to their email.`);
@@ -292,10 +395,7 @@ if ((process.env.HTTPS_PROXY || process.env.https_proxy) && !process.env.NODE_US
   const again = spawnSync(
     process.execPath,
     [...process.execArgv, '--disable-warning=UNDICI-EHPA', ...process.argv.slice(1)],
-    {
-      stdio: 'inherit',
-      env: { ...process.env, NODE_USE_ENV_PROXY: '1' },
-    },
+    { stdio: 'inherit', env: { ...process.env, NODE_USE_ENV_PROXY: '1' } },
   );
   process.exit(again.status ?? 1);
 } else {

@@ -15,8 +15,9 @@ Share the agreed version: what the designer has looked at and is happy with, not
    designer hasn't said who the client is, ask for the email addresses of the people who should see it. That's
    the one question to ask; never ask about tooling.
 2. **Ready.** Commit and push everything, and make sure `npm run check` passes.
-3. **Publish.** `npm run share -- --add <emails>` for new people, otherwise `npm run share`. It builds, publishes
-   to this prototype's link (the same link every time) and checks the link asks for a sign-in.
+3. **Publish.** `npm run share -- --add <emails>` for new people, otherwise `npm run share`. It pushes the commit
+   to the `shared` branch, waits for Cloudflare to build it at this prototype's link (the same link every time)
+   and checks the link asks for a sign-in. Never print, echo or ask for the Cloudflare token.
 4. **Record it.** Commit `share.json` ("Share the prototype with the client"), tag the commit
    `shared/<yyyy-mm-dd>` (add `-2`, `-3`… if taken) and push the commit and the tag.
 5. **Tell the designer**, in plain words: the link, who can open it, that each person signs in with a code sent to
@@ -29,7 +30,7 @@ Other requests:
   current version, so only do this from a commit the designer is happy to show; otherwise say so first.
 - **Take it offline** (only when the designer asks): `npm run share -- --unpublish`, then commit `share.json`.
 
-If publishing isn't set up (the command says `CLOUDFLARE_API_TOKEN` is missing) or Cloudflare can't be reached,
+If publishing isn't set up (the command says Cloudflare didn't accept the token) or Cloudflare can't be reached,
 don't look for another way to publish. Tell the designer that sharing isn't switched on for their Claude Code
 environment yet and that whoever looks after Appmilla's Cloudflare account can follow `tools/SHARING.md`; in the
 meantime they can show the client the prototype on a call.
