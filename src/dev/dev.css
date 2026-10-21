@@ -95,4 +95,7 @@
     padding: 2px 0;
     border: 0;
   }
+  .dev-table td.dev-states {
+    display: flex;
+  }
 }
