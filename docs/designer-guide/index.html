@@ -223,6 +223,9 @@ footer { margin-top: 56px; display: grid; gap: 18px; }
         <div class="say"><q>Build the clickable prototype from the design.</q><button type="button" data-copy="Build the clickable prototype from the design.">Copy</button></div>
         <figure class="shot"><img src="shots/07-build-reply.png" alt="Claude's reply after being asked to build the prototype" loading="lazy"></figure>
         <p class="small">A first build takes a while. You can leave it running and come back; Claude carries on.</p>
+        <p>As soon as the design arrives, Claude runs a <b>colour check</b>: are the design's text and background colours readable enough for everyone (the WCAG AA standard), in light and dark? If any fall short, Claude tells you which colours, where they're used (a button on hover, a status label…) and by how much, and suggests fixing them in Claude Design. Building carries on either way: colours are easy to swap later.</p>
+        <div class="say-label">After you change the design's colours</div>
+        <div class="say"><q>Check the design's colours again.</q><button type="button" data-copy="Check the design's colours again.">Copy</button></div>
       </div>
     </li>
 
@@ -296,7 +299,7 @@ footer { margin-top: 56px; display: grid; gap: 18px; }
         <div class="num" aria-hidden="true">8</div>
         <div>
           <h2>Get it signed off</h2>
-          <p class="why">Claude checks every screen is there and draws all its states, and lists what changed since the client last signed off.</p>
+          <p class="why">Claude checks every screen is there and draws all its states, scans every screen for accessibility, and lists what changed since the client last signed off.</p>
         </div>
       </div>
       <div class="body">
@@ -304,6 +307,8 @@ footer { margin-top: 56px; display: grid; gap: 18px; }
         <div class="say"><q>Is it ready for sign-off?</q><button type="button" data-copy="Is it ready for sign-off?">Copy</button></div>
         <div class="say-label">When they've approved it</div>
         <div class="say"><q>The client signed it off.</q><button type="button" data-copy="The client signed it off.">Copy</button></div>
+        <p>Part of that check is an <b>accessibility scan</b>. Claude opens every screen in every state, on a phone and a laptop, in light and dark, and checks things like readable colours, labels on buttons and fields, and that you can always see where the keyboard is. It takes a few minutes. Claude tells you what it found in plain words, fixes what doesn't change how a screen looks, and asks you first about anything that would, such as a colour or a layout.</p>
+        <p class="small">Automated checks catch only part of what matters, so someone still tries the real product with a keyboard and a screen reader before it goes live.</p>
         <p>After sign-off the engineering team builds the real product from the prototype's pages.</p>
       </div>
     </li>
